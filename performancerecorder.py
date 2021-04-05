@@ -9,7 +9,7 @@ sys.path.append('../')
 import audioop
 import os
 import math
-from rgb1602Packge import rgb1602 as LCD
+from UsbDetector import UsbDetector
 from pathlib import Path
 
 def getOutputFileName():
@@ -25,8 +25,7 @@ def isData():
 	return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
 
 if __name__ == '__main__':
-	lcd = LCD.LCD1602()
-	lcd.setRGB(0, 0, 255)
+	usbDetector = UsbDetector()
 
 	chunk = 1024
 	sample_format = pyaudio.paInt16
@@ -40,25 +39,14 @@ if __name__ == '__main__':
 		tty.setcbreak(sys.stdin.fileno())
 		record = False
 		stopRecord = False
-		refreshScreen = True
 
 		while True:
-			if refreshScreen:
-				lcd.clear()
-				lcd.setCursor(0,0)
-				lcd.printLCD("Ready...")
-				print("Ready...")
-				refreshScreen = False
-
 			if isData():
 				c = sys.stdin.read(1)
 				if c == "r":
 					record = True
 
 			if record:
-				lcd.clear()
-				lcd.setCursor(0,0)
-				lcd.printLCD("Recording...")
 				print("Starting recording...")
 				filename = getOutputFileName()
 				print("Output = " + filename)
@@ -79,11 +67,11 @@ if __name__ == '__main__':
 						if c == "r":
 							stopRecord = True
 					if stopRecord == True:
+						print("Stopping recording...")
 						stream.close()
 						wf.close()
 						record = False
 						stopRecord = False
-						refreshScreen = True
 						break
 
 
