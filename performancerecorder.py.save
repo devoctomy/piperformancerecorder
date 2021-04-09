@@ -9,48 +9,9 @@ sys.path.append('../')
 import audioop
 import os
 import math
-import signal
-import dothat.backlight as backlight
-import dothat.lcd as lcd
-import dothat.touch as nav
-from UsbDetector import UsbDetector
+ UsbDetector
+from rgb1602Packge import rgb1602 as LCD
 from pathlib import Path
-
-@nav.on(nav.UP)
-def handle_up(ch, evt):
-	lcd.clear();
-	backlight.rgb(255, 0, 0)
-	lcd.write("Up!")
-
-@nav.on(nav.DOWN)
-def handle_down(ch, evt):
-	lcd.clear();
-	backlight.rgb(0, 255, 0)	
-	lcd.write("Down!")
-
-@nav.on(nav.LEFT)
-def handle_down(ch, evt):
-        lcd.clear();
-        backlight.rgb(0, 0, 255)
-        lcd.write("Left!")
-
-@nav.on(nav.RIGHT)
-def handle_down(ch, evt):
-        lcd.clear();
-        backlight.rgb(255, 255, 0)
-        lcd.write("Right!")
-
-@nav.on(nav.BUTTON)
-def handle_down(ch, evt):
-        lcd.clear();
-        backlight.rgb(0, 255, 255)
-        lcd.write("Yes!")
-
-@nav.on(nav.CANCEL)
-def handle_down(ch, evt):
-        lcd.clear();
-        backlight.rgb(255, 0, 255)
-        lcd.write("No!")
 
 def getOutputFileName():
 	offset = 0
@@ -66,6 +27,8 @@ def isData():
 
 if __name__ == '__main__':
 	usbDetector = UsbDetector()
+	lcd = LCD.LCD1602()
+	lcd.setRGB(0, 0, 255)
 
 	chunk = 1024
 	sample_format = pyaudio.paInt16
@@ -79,14 +42,25 @@ if __name__ == '__main__':
 		tty.setcbreak(sys.stdin.fileno())
 		record = False
 		stopRecord = False
+		refreshScreen = True
 
 		while True:
+			if refreshScreen:
+				lcd.clear()
+				lcd.setCursor(0,0)
+				lcd.printLCD("Ready...")
+				print("Ready...")
+				refreshScreen = False
+
 			if isData():
 				c = sys.stdin.read(1)
 				if c == "r":
 					record = True
 
 			if record:
+				lcd.clear()
+				lcd.setCursor(0,0)
+				lcd.printLCD("Recording...")
 				print("Starting recording...")
 				filename = getOutputFileName()
 				print("Output = " + filename)
@@ -107,11 +81,11 @@ if __name__ == '__main__':
 						if c == "r":
 							stopRecord = True
 					if stopRecord == True:
-						print("Stopping recording...")
 						stream.close()
 						wf.close()
 						record = False
 						stopRecord = False
+						refreshScreen = True
 						break
 
 
