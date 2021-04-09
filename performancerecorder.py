@@ -16,41 +16,43 @@ import dothat.touch as nav
 from UsbDetector import UsbDetector
 from pathlib import Path
 
+button = -1
+
 @nav.on(nav.UP)
 def handle_up(ch, evt):
-	lcd.clear();
-	backlight.rgb(255, 0, 0)
-	lcd.write("Up!")
+	global button
+	print("Up button pressed.")
+	button = nav.UP
 
 @nav.on(nav.DOWN)
 def handle_down(ch, evt):
-	lcd.clear();
-	backlight.rgb(0, 255, 0)	
-	lcd.write("Down!")
+	global button
+	print("Down button pressed.")
+	button = nav.DOWN
 
 @nav.on(nav.LEFT)
 def handle_down(ch, evt):
-        lcd.clear();
-        backlight.rgb(0, 0, 255)
-        lcd.write("Left!")
+	global button
+	print("Left button pressed.")
+	button = nav.LEFT
 
 @nav.on(nav.RIGHT)
 def handle_down(ch, evt):
-        lcd.clear();
-        backlight.rgb(255, 255, 0)
-        lcd.write("Right!")
+	global button
+	print("Right button pressed.")
+	button = nav.RIGHT
 
 @nav.on(nav.BUTTON)
 def handle_down(ch, evt):
-        lcd.clear();
-        backlight.rgb(0, 255, 255)
-        lcd.write("Yes!")
+	global button
+	print("Ok button pressed.")
+	button = nav.BUTTON
 
 @nav.on(nav.CANCEL)
 def handle_down(ch, evt):
-        lcd.clear();
-        backlight.rgb(255, 0, 255)
-        lcd.write("No!")
+	global button
+	print("Cancel button pressed.")
+	button = nav.CANCEL
 
 def getOutputFileName():
 	offset = 0
@@ -73,23 +75,29 @@ if __name__ == '__main__':
 	fs = 44100
 	seconds = 3
 	p = pyaudio.PyAudio()
+	global button
+	button = -1
 
 	old_settings = termios.tcgetattr(sys.stdin)
 	try:
 		tty.setcbreak(sys.stdin.fileno())
 		record = False
 		stopRecord = False
+		lcd.clear()
+		backlight.rgb(0, 0, 255)
+		lcd.write("Ready...")
 
 		while True:
-			if isData():
-				c = sys.stdin.read(1)
-				if c == "r":
-					record = True
+			if button == nav.BUTTON:
+				record = True
+				nicktest = 0
 
 			if record:
-				print("Starting recording...")
+				lcd.clear()
+				backlight.rgb(255, 0, 0)
+				lcd.write("Recording...")
+
 				filename = getOutputFileName()
-				print("Output = " + filename)
 				stream = p.open(format=sample_format, channels=channels,rate=fs, frames_per_buffer=chunk,input=True)
 				wf = wave.open(filename, "wb")
 				wf.setnchannels(channels)
@@ -102,16 +110,18 @@ if __name__ == '__main__':
 					#print str(decibel)
 					wf.writeframes(b''.join(data))
 
-					if isData():
-						c = sys.stdin.read(1)
-						if c == "r":
-							stopRecord = True
+					if button == nav.CANCEL:
+						stopRecord = True
+
 					if stopRecord == True:
-						print("Stopping recording...")
 						stream.close()
 						wf.close()
 						record = False
 						stopRecord = False
+
+						lcd.clear()
+						backlight.rgb(0, 0, 255)
+						lcd.write("Ready...")
 						break
 
 
