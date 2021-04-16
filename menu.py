@@ -61,6 +61,62 @@ def recordAsync(args):
             wf.close()
             break
 
+class Audio(MenuOption):
+    def __init__(self):
+        self.inputDevices = []
+        self.selectedInputDeviceIndex = -1
+        self._icons_setup = False
+        self.p = pyaudio.PyAudio()
+        self.enumerate_devices()
+        MenuOption.__init__(self)
+
+    def right(self):
+        if self.selectedInputDeviceIndex < len(self.inputDevices) - 1:
+            self.selectedInputDeviceIndex += 1
+            self.update_selectedInputDeviceIndex()
+            return True
+        else:
+            return False
+
+    def left(self):
+        if self.selectedInputDeviceIndex > -1:
+            self.selectedInputDeviceIndex -= 1
+            self.update_selectedInputDeviceIndex()
+            return True
+        else:
+            return False
+
+    def enumerate_devices(self):
+        info = self.p.get_host_api_info_by_index(0)
+        numdevices = info.get('deviceCount')
+        for i in range (0,numdevices):
+            if self.p.get_device_info_by_host_api_device_index(0,i).get('maxInputChannels')>0:
+                self.inputDevices.append(self.p.get_device_info_by_host_api_device_index(0,i).get('name'))
+        self.selectedInputDeviceIndex = self.p.get_device_info_by_index(1)
+
+    def setup_icons(self, menu):
+        menu.lcd.create_char(0, MenuIcon.arrow_left_right)
+        self._icons_setup = True
+
+    def cleanup(self):
+        self._icons_setup = False
+        self.p.terminate()
+
+    def setup(self, config):
+        self.config = config
+        self.selectedInputDeviceIndex = bool(self.get_option('Audio', 'selectedInputDeviceIndex', -1))
+
+    def update_selectedInputDeviceIndex(self):
+        self.set_option('Audio', 'selectedInputDeviceIndex', self.selectedInputDeviceIndex)
+
+    def redraw(self, menu):
+        if not self._icons_setup:
+            self.setup_icons(menu)
+
+        menu.write_row(0, 'Audio')
+        menu.write_row(1, chr(0) + 'In: ' + self.inputDevices[self.selectedInputDeviceIndex])
+        menu.clear_row(2)
+
 class Video(MenuOption):
     def __init__(self):
         self.enabled = True
@@ -124,6 +180,7 @@ class Performance(MenuOption):
             menu.write_row(1, "")
         menu.clear_row(2)
 
+audio = Audio()
 video = Video()
 performance = Performance()
 
@@ -142,6 +199,7 @@ menu = Menu(
                 'Contrast': Contrast(lcd),
                 'Backlight': Backlight(backlight)
             },
+            'Audio': audio,
             'Video': video
         }
     },
