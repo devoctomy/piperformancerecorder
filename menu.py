@@ -21,51 +21,13 @@ from plugins.text import Text
 from plugins.utils import Backlight, Contrast
 from plugins.wlan import Wlan
 
-
-def getOutputFileName():
-	offset = 0
-	while True:
-		offset = offset + 1
-		output = "output" + str(offset) + ".wav"
-		outputFile = Path(output)
-		if not outputFile.is_file():
-			return output
-
-def recordAsync(args):
-    chunk = 1024
-    sample_format = pyaudio.paInt16
-    channels = 2
-    fs = 44100
-    seconds = 3
-    p = pyaudio.PyAudio()
-    stopRecord = False
-
-    print("Starting recording...")
-    filename = getOutputFileName()
-    print("Output = " + filename)
-    stream = p.open(format=sample_format, channels=channels,rate=fs, frames_per_buffer=chunk,input=True)
-    wf = wave.open(filename, "wb")
-    wf.setnchannels(channels)
-    wf.setsampwidth(p.get_sample_size(sample_format))
-    wf.setframerate(fs)
-    while True:
-        data = stream.read(chunk)
-        rms = audioop.rms(data, 2)		#our stereo rms, we want separate left and right though
-        decibel = 20 * math.log10(rms)
-        #print str(decibel)
-        wf.writeframes(b''.join(data))
-
-        if stopRecord == True:
-            print("Stopping recording...")
-            stream.close()
-            wf.close()
-            break
-
 class Audio(MenuOption):
     def __init__(self):
         self.inputDevices = []
         self.selectedInputDeviceIndex = -1
         self._icons_setup = False
+        self.isRecording = False
+        self.stopRecording = False
         self.p = pyaudio.PyAudio()
         self.enumerate_devices()
         MenuOption.__init__(self)
@@ -117,6 +79,51 @@ class Audio(MenuOption):
         menu.write_row(1, chr(0) + 'In: ' + self.inputDevices[self.selectedInputDeviceIndex])
         menu.clear_row(2)
 
+    def start_recording_async(self):
+        if not self.isRecording:
+            self.recordingThread = Thread(target=self.start_recording)
+            self.recordingThread.start()
+
+    def start_recording(self):
+        chunk = 1024
+        sample_format = pyaudio.paInt16
+        channels = 2
+        fs = 44100
+        seconds = 3
+
+        print("Starting recording...")
+        filename = self.getOutputFileName()
+        print("Output = " + filename)
+        stream = self.p.open(input_device_index=self.selectedInputDeviceIndex, format=sample_format, channels=channels,rate=fs, frames_per_buffer=chunk,input=True)
+        wf = wave.open(filename, "wb")
+        wf.setnchannels(channels)
+        wf.setsampwidth(self.p.get_sample_size(sample_format))
+        wf.setframerate(fs)
+        self.isRecording = True
+        while True:
+            data = stream.read(chunk)
+            rms = audioop.rms(data, 2)              #our stereo rms, we want separate left and right though
+            decibel = 20 * math.log10(rms)
+            #print str(decibel)
+            wf.writeframes(b''.join(data))
+
+            if self.stopRecording:
+                print("Stopping recording...")
+                stream.close()
+                wf.close()
+                self.stopRecording = False
+                break
+
+    def getOutputFileName(self):
+        offset = 0
+        while True:
+            offset = offset + 1
+            output = "output" + str(offset) + ".wav"
+            outputFile = Path(output)
+            if not outputFile.is_file():
+                return output
+
+
 class Video(MenuOption):
     def __init__(self):
         self.enabled = True
@@ -161,8 +168,7 @@ class Performance(MenuOption):
         MenuOption.__init__(self)
 
     def right(self):
-        self.recordingThread = Thread(target=recordAsync, args=[0])
-        self.recordingThread.start()
+        audio.start_recording_async()
         self.isRecording = True
         self.update_status()
 
