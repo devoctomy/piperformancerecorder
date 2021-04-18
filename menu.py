@@ -7,6 +7,7 @@ import time
 import audioop
 import os
 import math
+import datetime
 from threading import Thread
 from pathlib import Path
 import dothat.backlight as backlight
@@ -28,6 +29,7 @@ class Audio(MenuOption):
         self._icons_setup = False
         self.isRecording = False
         self.stopRecording = False
+        self.startedAt = datetime.datetime.now()
         self.p = pyaudio.PyAudio()
         self.enumerate_devices()
         MenuOption.__init__(self)
@@ -79,12 +81,13 @@ class Audio(MenuOption):
         menu.write_row(1, chr(0) + 'In: ' + self.inputDevices[self.selectedInputDeviceIndex])
         menu.clear_row(2)
 
-    def start_recording_async(self):
+    def start_recording_async(self, callback = None):
         if not self.isRecording:
-            self.recordingThread = Thread(target=self.start_recording)
+            self.recordingThread = Thread(target=self.start_recording, args=[callback])
             self.recordingThread.start()
 
-    def start_recording(self):
+    def start_recording(self, callback = None):
+        self.startedAt = datetime.datetime.now()
         chunk = 1024
         sample_format = pyaudio.paInt16
         channels = 2
@@ -101,6 +104,8 @@ class Audio(MenuOption):
         wf.setframerate(fs)
         self.isRecording = True
         while True:
+            if callback:
+                callback(self.startedAt)
             data = stream.read(chunk)
             rms = audioop.rms(data, 2)              #our stereo rms, we want separate left and right though
             decibel = 20 * math.log10(rms)
@@ -165,15 +170,19 @@ class Video(MenuOption):
 class Performance(MenuOption):
     def __init__(self):
         self.isRecording = False
+        self.elapsed = 0
         MenuOption.__init__(self)
 
     def right(self):
-        audio.start_recording_async()
+        audio.start_recording_async(self.audioRecordingCallback)
         self.isRecording = True
         self.update_status()
 
     def setup(self, config):
         self.config = config
+
+    def audioRecordingCallback(self, startedAt):
+        self.elapsed = (datetime.datetime.now() - startedAt).total_seconds()
 
     def update_status(self):
         self.set_option('Performance', 'recording', str(self.isRecording))
@@ -185,6 +194,8 @@ class Performance(MenuOption):
         else:
             menu.write_row(1, "")
         menu.clear_row(2)
+        elapsed = datetime.datetime.now() - audio.startedAt
+        menu.write_row(2, str(datetime.timedelta(seconds=self.elapsed)))
 
 audio = Audio()
 video = Video()
